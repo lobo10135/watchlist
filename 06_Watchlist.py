@@ -45,19 +45,20 @@ def get_market_data(symbol):
 # --- KOMPAKTES CSS ---
 st.markdown("""
 <style>
-    /* Spalten schmal und kompakt halten */
+    /* Spalten zwingend schmal halten */
     [data-testid="column"] {
         flex: 0 0 auto !important; 
-        width: 70px !important;
-        padding: 2px !important;
+        width: auto !important;
+        min-width: 45px !important;
+        padding: 1px !important;
     }
     .stHorizontalBlock {
-        gap: 5px !important;
+        gap: 2px !important;
         flex-wrap: nowrap !important;
         justify-content: flex-start !important;
     }
-    /* Schriftgröße für Übersichtlichkeit */
-    div[data-testid="column"] { font-size: 13px; }
+    /* Schrift verkleinern */
+    div[data-testid="column"] { font-size: 11px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,14 +88,14 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
             del st.session_state.temp_ticker; del st.session_state.temp_name; st.session_state.last_input = ""; st.rerun()
 
 if st.session_state.watchlist:
-    # Header
-    h1, h2, h3, h4, h5 = st.columns([1, 1, 1, 1, 1])
-    h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.**"); h4.write("**Stat.**"); h5.write("")
+    # Header - gleiche Spalten wie unten
+    cols = st.columns([1, 1, 1, 1, 0.8])
+    cols[0].write("**Wert**"); cols[1].write("**Aktuell**"); cols[2].write("**Fr.**"); cols[3].write("**Stat.**"); cols[4].write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri = get_market_data(item['Symbol'])
         if curr and fri:
-            c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 1])
+            c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 0.8])
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
             
             c1.write(f"{icon} **{item['Symbol']}**")
@@ -104,10 +105,10 @@ if st.session_state.watchlist:
             diff_pct = (curr - fri) / fri
             alert = ""
             if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005):
-                alert = f"🔥 {diff_pct:.1%}"
+                alert = f"🔥{diff_pct:.1%}"
             
             c4.write(alert)
-            if c5.button("Entf.", key=f"del_{i}"):
+            if c5.button("X", key=f"del_{i}"):
                 del st.session_state.watchlist[i]
                 save_watchlist()
                 st.rerun()
