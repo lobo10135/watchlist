@@ -1,3 +1,4 @@
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -54,7 +55,6 @@ with st.expander("➕ Neues Wertpapier hinzufügen"):
     if st.button("Zur Watchlist hinzufügen"):
         if not new_ticker:
             st.warning("Bitte gib ein Ticker-Symbol ein.")
-        # Prüfung: Ist das Symbol schon in der Liste vorhanden?
         elif any(item['Symbol'] == new_ticker for item in st.session_state.watchlist):
             st.error(f"Das Symbol {new_ticker} ist bereits in der Watchlist enthalten.")
         else:
@@ -81,7 +81,8 @@ if st.session_state.watchlist:
         curr, fri = get_market_data(item['Symbol'])
         if curr and fri:
             diff_pct = (curr - fri) / fri
-            alert = f"{diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
+            # Das Feuer-Icon ist hier wieder eingebaut
+            alert = f"🔥 {diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
             
             data_list.append({
                 "Symbol": f"{'🟢' if item['Typ'] == 'Long' else '🔴'} {item['Symbol']}",
@@ -98,7 +99,7 @@ if st.session_state.watchlist:
         column_config={
             "Aktuell": st.column_config.NumberColumn(format="%.2f"),
             "Freitag": st.column_config.NumberColumn(format="%.2f"),
-            "Alarm": st.column_config.TextColumn("Alarm", width="small")
+            "Alarm": st.column_config.TextColumn("Alarm", width="medium")
         }
     )
     
