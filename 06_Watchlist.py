@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -74,6 +73,8 @@ with st.expander("➕ Neues Wertpapier hinzufügen"):
             except Exception:
                 st.error("Fehler beim Abrufen der Ticker-Daten.")
 
+st.write("") # Leerzeile zwischen Expander und Tabelle
+
 # Anzeige als Tabelle
 if st.session_state.watchlist:
     data_list = []
@@ -81,7 +82,6 @@ if st.session_state.watchlist:
         curr, fri = get_market_data(item['Symbol'])
         if curr and fri:
             diff_pct = (curr - fri) / fri
-            # Das Feuer-Icon ist hier wieder eingebaut
             alert = f"🔥 {diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
             
             data_list.append({
