@@ -42,10 +42,12 @@ def get_market_data(symbol):
 if os.path.exists("bulle.jpg"):
     st.image("bulle.jpg", use_container_width=True)
 
-st.subheader("🐂 Watchlist perfekter Trade")
+st.subheader("🐂 Watchlist perfect Trade")
+st.write("") # Leerzeile unter der Überschrift
 
 # Hinzufügen-Logik mit Duplikat-Prüfung
 with st.expander("➕ Neues Wertpapier hinzufügen"):
+    st.write("") # Leerzeile unter dem Expander-Text
     new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. AAPL").upper()
     typ = st.radio("Ausrichtung:", ["Long", "Short"], horizontal=True)
     
