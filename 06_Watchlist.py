@@ -23,7 +23,6 @@ def init_app():
 
 init_app()
 
-# --- FUNKTIONEN ---
 def save_watchlist():
     df = pd.DataFrame(st.session_state.watchlist)
     df.to_csv(DATA_FILE, index=False)
@@ -43,20 +42,21 @@ def get_market_data(symbol):
     except:
         return None, None
 
-# --- UI ---
+# --- CSS: ERZWINGT ZEILEN-LAYOUT NUR AUF MOBILE ---
+st.markdown("""
+<style>
+    @media (max-width: 600px) {
+        [data-testid="column"] {
+            flex: 1 1 20% !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
 if os.path.exists("bulle.jpg"):
     st.image("bulle.jpg", use_container_width=True)
 
 st.subheader("🐂 Watchlist perfekter Trade")
-
-# CSS für kompakte Schrift auf dem Smartphone, um den Umbruch zu verhindern
-st.markdown("""
-<style>
-    @media (max-width: 600px) {
-        div[data-testid="column"] { font-size: 12px; }
-    }
-</style>
-""", unsafe_allow_html=True)
 
 with st.expander("Neues Wertpapier hinzufügen", expanded=False):
     user_input = st.text_input("Ticker-Symbol eingeben:", key="ticker_input")
@@ -78,15 +78,13 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
             save_watchlist()
             del st.session_state.temp_ticker; del st.session_state.temp_name; st.session_state.last_input = ""; st.rerun()
 
-# Watchlist-Anzeige
 if st.session_state.watchlist:
-    # Header mit Standard-Spalten
+    # Desktop-konforme Spaltenüberschriften
     h1, h2, h3, h4, h5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
     h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.-Schl.**"); h4.write("**Status**"); h5.write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri = get_market_data(item['Symbol'])
-        
         if curr and fri:
             c1, c2, c3, c4, c5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
@@ -97,10 +95,8 @@ if st.session_state.watchlist:
             
             diff_pct = (curr - fri) / fri
             alert = ""
-            if item.get('Typ') == "Long" and diff_pct < -0.005:
+            if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005):
                 alert = f"🔥 {diff_pct:.1%}"
-            elif item.get('Typ') == "Short" and diff_pct > 0.005:
-                alert = f"🔥 {diff_pct:+.1%}"
             
             c4.write(alert)
             if c5.button("Entf.", key=f"del_{i}"):
