@@ -42,13 +42,19 @@ def get_market_data(symbol):
     except:
         return None, None
 
-# --- CSS: ERZWINGT ZEILEN-LAYOUT NUR AUF MOBILE ---
+# --- CSS: DAS ERZWINGT DIE REIHE AUCH AUF DEM SMARTPHONE ---
 st.markdown("""
 <style>
-    @media (max-width: 600px) {
-        [data-testid="column"] {
-            flex: 1 1 20% !important;
-        }
+    /* Erzwingt Flexbox-Layout für alle Column-Container */
+    [data-testid="column"] {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    /* Reduziert Abstände, damit es in die Breite passt */
+    .stHorizontalBlock {
+        gap: 5px !important;
+        flex-wrap: nowrap !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -79,9 +85,9 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
             del st.session_state.temp_ticker; del st.session_state.temp_name; st.session_state.last_input = ""; st.rerun()
 
 if st.session_state.watchlist:
-    # Desktop-konforme Spaltenüberschriften
+    # Header
     h1, h2, h3, h4, h5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-    h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.-Schl.**"); h4.write("**Status**"); h5.write("")
+    h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.**"); h4.write("**Stat.**"); h5.write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri = get_market_data(item['Symbol'])
@@ -94,9 +100,7 @@ if st.session_state.watchlist:
             c3.write(f"{fri:.2f}")
             
             diff_pct = (curr - fri) / fri
-            alert = ""
-            if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005):
-                alert = f"🔥 {diff_pct:.1%}"
+            alert = f"🔥 {diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
             
             c4.write(alert)
             if c5.button("Entf.", key=f"del_{i}"):
