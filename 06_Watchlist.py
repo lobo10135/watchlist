@@ -75,20 +75,22 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
 
 # Watchlist-Anzeige
 if st.session_state.watchlist:
-    # Tabellen-Header
-    h1, h2, h3, h4, h5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-    h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.-Schluss**"); h4.write("**Status**"); h5.write("")
+    # Header fest in einer Zeile erzwingen
+    # Wir nehmen extrem schmale Verhältnisse, damit der Platz für eine Reihe reicht
+    cols = st.columns([0.22, 0.22, 0.22, 0.17, 0.17])
+    cols[0].write("**Wert**"); cols[1].write("**Aktuell**"); cols[2].write("**Fr.**"); cols[3].write("**Stat.**"); cols[4].write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri, curr_symbol = get_market_data(item['Symbol'])
         
         if curr and fri:
-            c1, c2, c3, c4, c5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            # Hier auch die Spaltenverhältnisse für die Datenzeile
+            c1, c2, c3, c4, c5 = st.columns([0.22, 0.22, 0.22, 0.17, 0.17])
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
             
             c1.write(f"{icon} **{item['Symbol']}**")
-            c2.write(f"{curr:.2f} {curr_symbol}")
-            c3.write(f"{fri:.2f} {curr_symbol}")
+            c2.write(f"{curr:.2f}")
+            c3.write(f"{fri:.2f}")
             
             diff_pct = (curr - fri) / fri
             alert = ""
@@ -98,7 +100,7 @@ if st.session_state.watchlist:
                 alert = f"🔥 {diff_pct:+.1%}"
             
             c4.write(alert)
-            if c5.button("Entfernen", key=f"del_{i}"):
+            if c5.button("Entf.", key=f"del_{i}"):
                 del st.session_state.watchlist[i]
                 save_watchlist()
                 st.rerun()
