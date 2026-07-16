@@ -42,23 +42,23 @@ def get_market_data(symbol):
     except:
         return None, None
 
-# --- KOMPAKTES CSS ---
+# --- AGGRESSIVES CSS ZUR KOMPRIMIERUNG ---
 st.markdown("""
 <style>
-    /* Spalten zwingend schmal halten */
+    /* Zwingt den gesamten Spaltenblock linksbündig und schmal */
     [data-testid="column"] {
-        flex: 0 0 auto !important; 
+        flex: 0 0 auto !important;
         width: auto !important;
-        min-width: 45px !important;
-        padding: 1px !important;
+        padding-left: 2px !important;
+        padding-right: 8px !important;
     }
     .stHorizontalBlock {
-        gap: 2px !important;
+        gap: 0px !important;
         flex-wrap: nowrap !important;
         justify-content: flex-start !important;
     }
     /* Schrift verkleinern */
-    div[data-testid="column"] { font-size: 11px !important; }
+    div[data-testid="column"] { font-size: 12px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -88,17 +88,17 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
             del st.session_state.temp_ticker; del st.session_state.temp_name; st.session_state.last_input = ""; st.rerun()
 
 if st.session_state.watchlist:
-    # Header - gleiche Spalten wie unten
-    cols = st.columns([1, 1, 1, 1, 0.8])
+    # Header - keine Breiten-Verhältnisse, wir lassen CSS regeln
+    cols = st.columns(5)
     cols[0].write("**Wert**"); cols[1].write("**Aktuell**"); cols[2].write("**Fr.**"); cols[3].write("**Stat.**"); cols[4].write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri = get_market_data(item['Symbol'])
         if curr and fri:
-            c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 0.8])
+            c1, c2, c3, c4, c5 = st.columns(5)
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
             
-            c1.write(f"{icon} **{item['Symbol']}**")
+            c1.write(f"{icon} {item['Symbol']}")
             c2.write(f"{curr:.2f}")
             c3.write(f"{fri:.2f}")
             
