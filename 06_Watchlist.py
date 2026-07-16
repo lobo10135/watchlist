@@ -2,10 +2,9 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import os
-from datetime import datetime, timedelta
 
 # Konfiguration
-st.set_page_config(page_title="Watchlist", layout="centered")
+st.set_page_config(page_title="Viper Watchlist", layout="centered")
 DATA_FILE = "watchlist.csv"
 
 # --- INITIALISIERUNG ---
@@ -28,12 +27,10 @@ def save_watchlist():
 def get_market_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        # Historie für Vergleich
         hist = ticker.history(period="5d")
         if hist.empty: return None, None
         
         current = hist['Close'].iloc[-1]
-        # Letzter Freitag oder letzter bekannter Handelstag
         friday_data = hist[hist.index.dayofweek == 4]
         friday_price = friday_data['Close'].iloc[-1] if not friday_data.empty else hist['Close'].iloc[0]
         
@@ -47,23 +44,33 @@ if os.path.exists("bulle.jpg"):
 
 st.subheader("🐂 Watchlist perfekter Trade")
 
-# Hinzufügen
-with st.expander("Neues Wertpapier hinzufügen"):
-    new_ticker = st.text_input("Ticker-Symbol eingeben:").upper()
+# Hinzufügen-Logik mit Duplikat-Prüfung
+with st.expander("➕ Neues Wertpapier hinzufügen"):
+    new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. AAPL").upper()
     typ = st.radio("Ausrichtung:", ["Long", "Short"], horizontal=True)
-    if st.button("Hinzufügen"):
-        if new_ticker:
+    
+    if st.button("Zur Watchlist hinzufügen"):
+        if not new_ticker:
+            st.warning("Bitte gib ein Ticker-Symbol ein.")
+        # Prüfung: Ist das Symbol schon in der Liste vorhanden?
+        elif any(item['Symbol'] == new_ticker for item in st.session_state.watchlist):
+            st.error(f"Das Symbol {new_ticker} ist bereits in der Watchlist enthalten.")
+        else:
             ticker = yf.Ticker(new_ticker)
-            if 'longName' in ticker.info:
-                st.session_state.watchlist.append({
-                    "Symbol": new_ticker, 
-                    "Name": ticker.info['longName'], 
-                    "Typ": typ
-                })
-                save_watchlist()
-                st.rerun()
-            else:
-                st.error("Ticker nicht gefunden.")
+            try:
+                info = ticker.info
+                if 'longName' in info:
+                    st.session_state.watchlist.append({
+                        "Symbol": new_ticker, 
+                        "Name": info['longName'], 
+                        "Typ": typ
+                    })
+                    save_watchlist()
+                    st.rerun()
+                else:
+                    st.error("Ticker konnte nicht gefunden werden.")
+            except Exception:
+                st.error("Fehler beim Abrufen der Ticker-Daten.")
 
 # Anzeige als Tabelle
 if st.session_state.watchlist:
@@ -81,23 +88,27 @@ if st.session_state.watchlist:
                 "Alarm": alert
             })
 
-    # Hier scrollt nur die Tabelle, der Rest der Seite bleibt stabil
+    # Scrollbare Tabelle für Mobilgeräte
     st.dataframe(
         pd.DataFrame(data_list),
         use_container_width=True,
         hide_index=True,
         column_config={
             "Aktuell": st.column_config.NumberColumn(format="%.2f"),
-            "Freitag": st.column_config.NumberColumn(format="%.2f")
+            "Freitag": st.column_config.NumberColumn(format="%.2f"),
+            "Alarm": st.column_config.TextColumn("Alarm", width="small")
         }
     )
     
-    # Lösch-Funktion unter der Tabelle
     st.divider()
-    del_symbol = st.selectbox("Symbol zum Löschen wählen:", [x['Symbol'] for x in st.session_state.watchlist])
+    # Löschen über Auswahlmenü
+    options = {f"{x['Symbol']} - {x['Name']}": x['Symbol'] for x in st.session_state.watchlist}
+    del_selection = st.selectbox("Symbol zum Löschen auswählen:", options=options.keys())
+    
     if st.button("Ausgewähltes Symbol entfernen"):
-        st.session_state.watchlist = [x for x in st.session_state.watchlist if x['Symbol'] != del_symbol]
+        target = options[del_selection]
+        st.session_state.watchlist = [x for x in st.session_state.watchlist if x['Symbol'] != target]
         save_watchlist()
         st.rerun()
 else:
-    st.info("Deine Watchlist ist leer.")
+    st.info("Deine Watchlist ist aktuell leer.")
