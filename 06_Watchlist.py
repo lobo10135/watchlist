@@ -32,26 +32,31 @@ def get_market_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
         current = ticker.fast_info['last_price']
-        currency = ticker.fast_info['currency']
-        
         today = datetime.now()
         days_since_friday = (today.weekday() - 4) % 7
         if days_since_friday == 0: days_since_friday = 7
         last_friday = today - timedelta(days=days_since_friday)
-        
         hist = ticker.history(start=last_friday.strftime('%Y-%m-%d'), 
                               end=(last_friday + timedelta(days=1)).strftime('%Y-%m-%d'))
-        
         friday_price = hist['Close'].iloc[-1] if not hist.empty else None
-        return current, friday_price, currency
+        return current, friday_price
     except:
-        return None, None, ""
+        return None, None
 
 # --- UI ---
 if os.path.exists("bulle.jpg"):
     st.image("bulle.jpg", use_container_width=True)
 
 st.subheader("🐂 Watchlist perfekter Trade")
+
+# CSS für kompakte Schrift auf dem Smartphone, um den Umbruch zu verhindern
+st.markdown("""
+<style>
+    @media (max-width: 600px) {
+        div[data-testid="column"] { font-size: 12px; }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 with st.expander("Neues Wertpapier hinzufügen", expanded=False):
     user_input = st.text_input("Ticker-Symbol eingeben:", key="ticker_input")
@@ -75,17 +80,15 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
 
 # Watchlist-Anzeige
 if st.session_state.watchlist:
-    # Header fest in einer Zeile erzwingen
-    # Wir nehmen extrem schmale Verhältnisse, damit der Platz für eine Reihe reicht
-    cols = st.columns([0.22, 0.22, 0.22, 0.17, 0.17])
-    cols[0].write("**Wert**"); cols[1].write("**Aktuell**"); cols[2].write("**Fr.**"); cols[3].write("**Stat.**"); cols[4].write("")
+    # Header mit Standard-Spalten
+    h1, h2, h3, h4, h5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+    h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.-Schl.**"); h4.write("**Status**"); h5.write("")
 
     for i, item in enumerate(st.session_state.watchlist):
-        curr, fri, curr_symbol = get_market_data(item['Symbol'])
+        curr, fri = get_market_data(item['Symbol'])
         
         if curr and fri:
-            # Hier auch die Spaltenverhältnisse für die Datenzeile
-            c1, c2, c3, c4, c5 = st.columns([0.22, 0.22, 0.22, 0.17, 0.17])
+            c1, c2, c3, c4, c5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
             
             c1.write(f"{icon} **{item['Symbol']}**")
