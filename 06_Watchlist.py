@@ -46,7 +46,7 @@ st.subheader("🐂 Watchlist perfect Trade")
 st.write("") # Leerzeile unter der Überschrift
 
 # Hinzufügen-Logik mit Duplikat-Prüfung
-with st.expander("➕ Neues Wertpapier hinzufügen"):
+with st.expander("➕ Symbol hinzufügen"):
     st.write("") # Leerzeile unter dem Expander-Text
     new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. AAPL").upper()
     typ = st.radio("Ausrichtung:", ["Long", "Short"], horizontal=True)
