@@ -42,20 +42,22 @@ def get_market_data(symbol):
     except:
         return None, None
 
-# --- CSS: DAS ERZWINGT DIE REIHE AUCH AUF DEM SMARTPHONE ---
+# --- KOMPAKTES CSS ---
 st.markdown("""
 <style>
-    /* Erzwingt Flexbox-Layout für alle Column-Container */
+    /* Spalten schmal und kompakt halten */
     [data-testid="column"] {
-        display: flex !important;
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
+        flex: 0 0 auto !important; 
+        width: 70px !important;
+        padding: 2px !important;
     }
-    /* Reduziert Abstände, damit es in die Breite passt */
     .stHorizontalBlock {
         gap: 5px !important;
         flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
     }
+    /* Schriftgröße für Übersichtlichkeit */
+    div[data-testid="column"] { font-size: 13px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,13 +88,13 @@ with st.expander("Neues Wertpapier hinzufügen", expanded=False):
 
 if st.session_state.watchlist:
     # Header
-    h1, h2, h3, h4, h5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+    h1, h2, h3, h4, h5 = st.columns([1, 1, 1, 1, 1])
     h1.write("**Wert**"); h2.write("**Aktuell**"); h3.write("**Fr.**"); h4.write("**Stat.**"); h5.write("")
 
     for i, item in enumerate(st.session_state.watchlist):
         curr, fri = get_market_data(item['Symbol'])
         if curr and fri:
-            c1, c2, c3, c4, c5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 1])
             icon = "🟢" if item.get('Typ', 'Long') == "Long" else "🔴"
             
             c1.write(f"{icon} **{item['Symbol']}**")
@@ -100,7 +102,9 @@ if st.session_state.watchlist:
             c3.write(f"{fri:.2f}")
             
             diff_pct = (curr - fri) / fri
-            alert = f"🔥 {diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
+            alert = ""
+            if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005):
+                alert = f"🔥 {diff_pct:.1%}"
             
             c4.write(alert)
             if c5.button("Entf.", key=f"del_{i}"):
