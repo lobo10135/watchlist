@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import os
 
-# Konfiguration
 st.set_page_config(page_title="Viper Watchlist", layout="centered")
 DATA_FILE = "watchlist.csv"
 
@@ -24,88 +23,89 @@ init_app()
 def save_watchlist():
     pd.DataFrame(st.session_state.watchlist).to_csv(DATA_FILE, index=False)
 
-def get_market_data(symbol):
+@st.cache_data(ttl=300)
+def get_analysis_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="5d")
-        if hist.empty: return None, None
+        hist_day = ticker.history(period="7d")
+        if hist_day.empty: return None, None, None, None
         
-        current = hist['Close'].iloc[-1]
-        friday_data = hist[hist.index.dayofweek == 4]
-        friday_price = friday_data['Close'].iloc[-1] if not friday_data.empty else hist['Close'].iloc[0]
+        fridays = hist_day[hist_day.index.dayofweek == 4]
+        fri_low = fridays['Low'].iloc[-1] if not fridays.empty else hist_day['Low'].iloc[0]
+        fri_high = fridays['High'].iloc[-1] if not fridays.empty else hist_day['High'].iloc[0]
         
-        return current, friday_price
+        hist_intraday = ticker.history(period="2d", interval="5m")
+        current = hist_intraday['Close'].iloc[-1]
+        
+        return current, fri_low, fri_high, hist_intraday
     except:
-        return None, None
+        return None, None, None, None
 
 # --- UI ---
+# Das Bild wird hier wieder geladen
 if os.path.exists("bulle.jpg"):
     st.image("bulle.jpg", use_container_width=True)
 
 st.subheader("🐂 Watchlist perfect Trade")
-st.write("") # Leerzeile unter der Überschrift
 
-# Hinzufügen-Logik mit Duplikat-Prüfung
-with st.expander("➕ Symbol hinzufügen"):
-    st.write("") # Leerzeile unter dem Expander-Text
-    new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. AAPL").upper()
+with st.expander("➕ Symbol hinzufügen (Infos)"):
+    st.info("• Deutsche Aktien: Bitte '.DE' am Ende anhängen (z.B. SAP.DE)\n• Gold: 'GC=F'\n• WTI Öl: 'CL=F'")
+    new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. SAP.DE oder GC=F").upper()
     typ = st.radio("Ausrichtung:", ["Long", "Short"], horizontal=True)
     
     if st.button("Zur Watchlist hinzufügen"):
         if not new_ticker:
             st.warning("Bitte gib ein Ticker-Symbol ein.")
         elif any(item['Symbol'] == new_ticker for item in st.session_state.watchlist):
-            st.error(f"Das Symbol {new_ticker} ist bereits in der Watchlist enthalten.")
+            st.error(f"Das Symbol {new_ticker} ist bereits enthalten.")
         else:
             ticker = yf.Ticker(new_ticker)
             try:
-                info = ticker.info
-                if 'longName' in info:
-                    st.session_state.watchlist.append({
-                        "Symbol": new_ticker, 
-                        "Name": info['longName'], 
-                        "Typ": typ
-                    })
+                data = ticker.history(period="1d")
+                if not data.empty:
+                    # Versuche Firmennamen zu laden
+                    full_name = ticker.info.get('longName', new_ticker)
+                    st.session_state.watchlist.append({"Symbol": new_ticker, "Name": full_name, "Typ": typ})
                     save_watchlist()
                     st.rerun()
                 else:
                     st.error("Ticker konnte nicht gefunden werden.")
-            except Exception:
+            except:
                 st.error("Fehler beim Abrufen der Ticker-Daten.")
 
-st.write("") # Leerzeile zwischen Expander und Tabelle
-
-# Anzeige als Tabelle
 if st.session_state.watchlist:
     data_list = []
     for item in st.session_state.watchlist:
-        curr, fri = get_market_data(item['Symbol'])
-        if curr and fri:
-            diff_pct = (curr - fri) / fri
-            alert = f"🔥 {diff_pct:.1%}" if (item.get('Typ') == "Long" and diff_pct < -0.005) or (item.get('Typ') == "Short" and diff_pct > 0.005) else "-"
+        curr, low_fri, high_fri, hist = get_analysis_data(item['Symbol'])
+        
+        if curr is not None:
+            if item['Typ'] == "Long":
+                ref_price = low_fri
+                diff_pct = (curr - ref_price) / ref_price
+                alert = f"🔥 {diff_pct:.2%}" if diff_pct < -0.005 else "-"
+                trigger_limit = low_fri * 0.995
+                war_unter = (hist['Low'] < trigger_limit).any()
+                alarm2 = "🔥" if war_unter and curr >= low_fri else "-"
+            else: 
+                ref_price = high_fri
+                diff_pct = (curr - ref_price) / ref_price
+                alert = f"🔥 {diff_pct:.2%}" if diff_pct > 0.005 else "-"
+                trigger_limit = high_fri * 1.005
+                war_ueber = (hist['High'] > trigger_limit).any()
+                alarm2 = "🔥" if war_ueber and curr <= high_fri else "-"
             
             data_list.append({
                 "Symbol": f"{'🟢' if item['Typ'] == 'Long' else '🔴'} {item['Symbol']}",
                 "Aktuell": curr,
-                "Freitag": fri,
-                "Alarm": alert
+                "Freitag": ref_price,
+                "Alarm": alert,
+                "Alarm 2": alarm2
             })
 
-    # Scrollbare Tabelle für Mobilgeräte
-    st.dataframe(
-        pd.DataFrame(data_list),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Aktuell": st.column_config.NumberColumn(format="%.2f"),
-            "Freitag": st.column_config.NumberColumn(format="%.2f"),
-            "Alarm": st.column_config.TextColumn("Alarm", width="medium")
-        }
-    )
+    st.dataframe(pd.DataFrame(data_list), use_container_width=True, hide_index=True)
     
     st.divider()
-    # Löschen über Auswahlmenü
-    options = {f"{x['Symbol']} - {x['Name']}": x['Symbol'] for x in st.session_state.watchlist}
+    options = {f"{x['Symbol']} ({x['Typ']})": x['Symbol'] for x in st.session_state.watchlist}
     del_selection = st.selectbox("Symbol zum Löschen auswählen:", options=options.keys())
     
     if st.button("Ausgewähltes Symbol entfernen"):
