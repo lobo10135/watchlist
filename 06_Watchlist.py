@@ -117,7 +117,7 @@ st.subheader("🐂 Watchlist perfect Trade")
 
 with st.expander("➕ Symbol hinzufügen (Infos)"):
     st.info("• Deutsche Aktien: Bitte '.DE' am Ende anhängen (z.B. SAP.DE)\n• Gold: 'GC=F'\n• WTI Öl: 'CL=F'")
-    new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. SAP.DE oder GC=F").upper()
+    new_ticker = st.text_input("Ticker-Symbol:", placeholder="z.B. SAP.DE, AXON oder GC=F").upper()
     typ = st.radio("Ausrichtung:", ["Long", "Short"], horizontal=True)
     
     if st.button("Symbol hinzufügen"):
@@ -126,18 +126,23 @@ with st.expander("➕ Symbol hinzufügen (Infos)"):
         elif any(item['Symbol'] == new_ticker for item in st.session_state.watchlist):
             st.error(f"Das Symbol {new_ticker} ist bereits enthalten.")
         else:
-            ticker = yf.Ticker(new_ticker)
             try:
+                ticker = yf.Ticker(new_ticker)
                 data = ticker.history(period="1d")
                 if not data.empty:
-                    full_name = ticker.info.get('longName', new_ticker)
+                    # Sicherer Abruf des Firmennamens (schlägt nicht mehr fehl, wenn info leer ist)
+                    try:
+                        full_name = ticker.info.get('longName', new_ticker)
+                    except:
+                        full_name = new_ticker
+                        
                     st.session_state.watchlist.append({"Symbol": new_ticker, "Name": full_name, "Typ": typ})
                     save_watchlist_to_github()  # Direkt in GitHub speichern
                     st.rerun()
                 else:
-                    st.error("Ticker konnte nicht gefunden werden.")
-            except:
-                st.error("Fehler beim Abrufen der Ticker-Daten.")
+                    st.error("Ticker konnte nicht gefunden werden (keine Kursdaten).")
+            except Exception as e:
+                st.error(f"Fehler beim Abrufen der Ticker-Daten: {e}")
 
 if st.session_state.watchlist:
     data_list = []
