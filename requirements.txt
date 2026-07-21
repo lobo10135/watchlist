@@ -5,3 +5,4 @@ pandas-ta
 lxml
 requests
 fpdf
+PyGithub
