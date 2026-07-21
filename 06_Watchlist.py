@@ -1,27 +1,79 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import os
+import base64
+from github import Github, GithubException
 
 st.set_page_config(page_title="Viper Watchlist", layout="centered")
 DATA_FILE = "watchlist.csv"
 
-# --- INITIALISIERUNG ---
-def init_app():
-    if 'watchlist' not in st.session_state:
+# --- GITHUB HILFSFUNKTIONEN FÜR CLOUD-PERSISTENZ ---
+def get_github_repo():
+    """Verbindung zu GitHub herstellen, falls Secrets hinterlegt sind."""
+    try:
+        if "GITHUB_TOKEN" in st.secrets and "REPO_NAME" in st.secrets:
+            g = Github(st.secrets["GITHUB_TOKEN"])
+            return g.get_repo(st.secrets["REPO_NAME"])
+    except Exception:
+        pass
+    return None
+
+def load_watchlist_from_github():
+    """Lädt die Watchlist direkt aus dem GitHub-Repo (Cloud-Modus) oder lokal."""
+    repo = get_github_repo()
+    if repo:
+        try:
+            file_content = repo.get_contents(DATA_FILE)
+            decoded_content = base64.b64decode(file_content.content).decode("utf-8")
+            from io import StringIO
+            df = pd.read_csv(StringIO(decoded_content))
+            return df.to_dict('records')
+        except Exception:
+            return []
+    else:
+        # Fallback für den lokalen Betrieb (ohne GitHub Secrets)
+        import os
         if os.path.exists(DATA_FILE):
             try:
                 df = pd.read_csv(DATA_FILE)
-                st.session_state.watchlist = df.to_dict('records')
+                return df.to_dict('records')
             except:
-                st.session_state.watchlist = []
-        else:
-            st.session_state.watchlist = []
+                return []
+        return []
+
+def save_watchlist_to_github():
+    """Speichert die Watchlist direkt als Commit in GitHub ab."""
+    df = pd.DataFrame(st.session_state.watchlist)
+    csv_data = df.to_csv(index=False)
+    
+    repo = get_github_repo()
+    if repo:
+        try:
+            # Versuchen, die bestehende Datei zu aktualisieren (SHA holen)
+            file = repo.get_contents(DATA_FILE)
+            repo.update_file(
+                path=DATA_FILE,
+                message="Update watchlist via Streamlit App",
+                content=csv_data,
+                sha=file.sha
+            )
+        except GithubException:
+            # Falls die Datei noch gar nicht existiert, neu anlegen
+            repo.create_file(
+                path=DATA_FILE,
+                message="Create initial watchlist",
+                content=csv_data
+            )
+    else:
+        # Lokaler Fallback
+        df.to_csv(DATA_FILE, index=False)
+
+# --- INITIALISIERUNG ---
+def init_app():
+    if 'watchlist' not in st.session_state:
+        st.session_state.watchlist = load_watchlist_from_github()
 
 init_app()
-
-def save_watchlist():
-    pd.DataFrame(st.session_state.watchlist).to_csv(DATA_FILE, index=False)
 
 @st.cache_data(ttl=300)
 def get_analysis_data(symbol):
@@ -35,14 +87,9 @@ def get_analysis_data(symbol):
         
         # Gruppierung nach Kalenderwoche und Filterung auf die letzte Woche mit 5 Tagen
         weeks = trading_days.groupby(trading_days.index.isocalendar().week)
-        # Wir wählen die vorletzte Woche, falls die aktuelle Woche noch läuft
-        # oder die letzte, falls heute Sonntag ist (die Woche ist abgeschlossen)
         if len(weeks) < 2: return None, None, None, None
         
-        # Index der abgeschlossenen Wochen
         completed_weeks = [w for w in weeks.groups.keys()]
-        # Wenn heute Sonntag ist (dayofweek 6), ist die aktuelle Woche abgeschlossen.
-        # Ansonsten nehmen wir die vorherige.
         current_day = pd.Timestamp.now().dayofweek
         if current_day == 6:
             last_week_data = weeks.get_group(completed_weeks[-1])
@@ -62,6 +109,7 @@ def get_analysis_data(symbol):
         return None, None, None, None
 
 # --- UI ---
+import os
 if os.path.exists("bulle.jpg"):
     st.image("bulle.jpg", use_container_width=True)
 
@@ -84,7 +132,7 @@ with st.expander("➕ Symbol hinzufügen (Infos)"):
                 if not data.empty:
                     full_name = ticker.info.get('longName', new_ticker)
                     st.session_state.watchlist.append({"Symbol": new_ticker, "Name": full_name, "Typ": typ})
-                    save_watchlist()
+                    save_watchlist_to_github()  # Direkt in GitHub speichern
                     st.rerun()
                 else:
                     st.error("Ticker konnte nicht gefunden werden.")
@@ -132,7 +180,7 @@ if st.session_state.watchlist:
     if st.button("Symbol entfernen"):
         target = options[del_selection]
         st.session_state.watchlist = [x for x in st.session_state.watchlist if x['Symbol'] != target]
-        save_watchlist()
+        save_watchlist_to_github()  # Direkt in GitHub aktualisieren
         st.rerun()
 else:
     st.info("Deine Watchlist ist aktuell leer.")
